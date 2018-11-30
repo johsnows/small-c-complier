@@ -1,0 +1,1000 @@
+#include <bits/stdc++.h>
+using namespace std;
+/**
+* 词法分析
+*
+*/
+
+char code[3005];
+char str[3005];
+char tmp[3005];
+char key[10][20];
+char b[30];
+int isbound(char x)
+{
+    for(int i=0; i<6; i++)if(x==b[i])return 1;
+    return 0;
+}
+void lexer()
+{
+
+    freopen("c3.txt", "r", stdin);
+//    freopen("C:\\Users\\the horse of snow\\Desktop\\编译原理\\complier\\cc.txt", "w", stdout);
+    strcpy(b, "{}(),;");
+    strcpy(key[0], "main");
+    strcpy(key[1], "if");
+    strcpy(key[2], "else");
+    strcpy(key[3], "for");
+    strcpy(key[4], "while");
+    strcpy(key[5], "int");
+    int i, j, p=0;
+    while(~scanf("%s", str))
+    {
+        i=0;
+        while(str[i])
+        {
+            j=0;
+            memset(tmp, '\0', sizeof tmp);
+            if(str[i]==' ')
+            {
+                i++;
+            }
+            else if(isalpha(str[i]))
+            {
+                while(isalpha(str[i]) || isdigit(str[i]))tmp[j++]=str[i++];
+                int k=0;
+                for(int i=0; i<6; i++)if(strcmp(key[i], tmp)==0){
+                    k=1;
+                    printf("(keyword,%s)\n", tmp);
+                    break;
+                }
+                if(!k)
+                {
+                    printf("(identifier,%s)\n", tmp);
+                }
+                for(int i=0; tmp[i]; i++)code[p++]=tmp[i];
+            }
+            else if(isbound(str[i]))
+            {
+                code[p++]=str[i];
+                printf("(boundary,%c)\n", str[i++]);
+            }
+            else if(isdigit(str[i]))
+            {
+                while(isdigit(str[i]))
+                {
+                    tmp[j++]=str[i++];
+                }
+                for(int i=0; tmp[i]; i++)code[p++]=tmp[i];
+                printf("(integer,%s)\n", tmp);
+            }
+            else
+            {
+                code[p++]=str[i];
+		if(str[i]=='$' || str[i]=='#' || str[i]=='@')
+		{
+			printf("error\n");
+			return;
+			break;
+		}
+                printf("(operator,%c", str[i++]);
+                if(str[i]=='=')
+                {
+                    code[p++]=str[i];
+                    printf("%c", str[i++]);
+                }
+                printf(")\n");
+            }
+        }
+    }
+}
+int getcode()
+{
+
+    lexer();
+//    freopen("//home//meik//complier//cc.txt", "w", stdout);
+//    printf("%s\n", code);
+}
+/**
+*中间代码生成
+*
+*/
+const int maxn=1e4+4;
+char expre[maxn][20];
+char nowcode[maxn];
+int NumExp;
+int nowp;
+/**
+*dag代码优化
+*
+*/
+#define ps push_back
+char cal[105][20];
+int mp[250]; //map a to n
+int to[305][305][200];
+int N[105];
+int edg[305][3];
+struct node
+{
+    char str[20];
+    int is;
+    bool operator <(const node a)const
+    {
+        return is<a.is;
+    }
+}oper[305], ans[305];
+vector<char>att[305];
+int Pnum;
+int findN(char x)
+{
+    return mp[x];
+}
+int top;
+int book[305];
+void dfs(int x)
+{
+    if(x==0 || oper[x].is==-1 || book[x])return;
+    book[x]=1;
+    ans[top++]=oper[x];
+    if(x!=edg[x][0])dfs(edg[x][0]);
+    if(x!=edg[x][1])dfs(edg[x][1]);
+    return;
+}
+int dag(int &n, char cal[][20])
+{
+    for(int i=0; i<300; i++)
+    {
+	oper[i].is=-1;
+	att[i].clear();
+	book[i]=0;
+    }
+    top=0;
+    memset(to, 0, sizeof to);
+    memset(mp, -1, sizeof mp);
+    int i, j;
+    char a, b, c, op;
+    Pnum=1;
+//    for(i=1; i<=n; i++)
+//    {
+//        scanf("%s", cal[i]);
+//    }
+    for(i=1; i<=n; i++)
+    {
+        c=cal[i][0], a=cal[i][2], b=cal[i][4], op=cal[i][3];
+        int an, bn, cn;
+        an=findN(a);
+        if(an==-1)
+        {
+            an=Pnum++;
+            mp[a]=an;
+            att[an].ps(a);
+            oper[an].is=-1;
+        }
+        bn=findN(b);
+        if(bn==-1)
+        {
+            bn=Pnum++;
+            mp[b]=bn;
+            att[bn].ps(b);
+            oper[bn].is=-1;
+        }
+        if(to[an][bn][op])
+        {
+            int now=to[an][bn][op];
+            att[now].ps(c);
+            mp[c]=now;
+        }
+        else
+        {
+            cn=Pnum++;
+            mp[c]=cn;
+            edg[cn][0]=an;
+            edg[cn][1]=bn;
+            oper[cn].is=i;
+            strcpy(oper[cn].str, cal[i]);
+            oper[cn].str[2]=att[an][0];
+            oper[cn].str[4]=att[bn][0];
+            att[cn].ps(c);
+            to[an][bn][op]=cn;
+        }
+    }
+    int An=findN('A');
+    int now=An;
+    dfs(now);
+    now=findN('B');
+    dfs(now);
+    sort(ans, ans+top);
+    cout<<top<<endl;
+    for(i=0; i<top; i++)
+    {
+        printf("%s\n", ans[i].str);
+        strcpy(expre[i], ans[i].str);
+    }
+    n=top;
+}
+
+
+
+
+/***
+*递归下降分析
+*
+*/
+int p;
+int error, num;
+void E(char a[]);
+void ss(char a[]);
+void T(char a[]);
+void G(char a[]);
+void F(char a[]);
+void H(char a[]);
+void Uint(char a[]);  //无符号整数
+void Int(char a[]);    //整数
+void cx(char a[]);     //程序
+void sm(char a[]);      //声明
+void smyj(char a[]);    //声明语句
+void IntKey(char a[]);  //int关键字
+void MainKey(char a[]); //main关键字
+void bzfb(char a[]);   //标识符表
+void bzf(char a[]);     //标识符
+void tbzf(char a[]);    //临时标识符
+void zm(char a[]);      //字母
+void Int(char a[]);
+void yjxl(char a[]);    //语句序列
+void yj(char a[]);      //语句
+void fz(char a[]);      //赋值
+void ifyj(char a[]);    //if语句
+void whileyj(char a[]);  //while语句
+void printfyj(char a[]); //printf语句
+void scanfyj(char a[]);  //scanf语句
+void fhyj(char a[]);   //复合语句
+void bds(char a[]); //表达式
+void tbds(char a[]); //临时表达式
+
+/***
+*目标代码生成
+*
+****/
+int idnum;
+struct idinit{
+    char A;
+}ident[maxn];
+int ordnum;
+char order[maxn][30];
+int n, r;
+char reg[11];
+char regname[11][20];
+char instr[300][30];
+int last[11];
+int Find(char x)
+{
+    for(int i=0; i<r; i++)if(reg[i]==x)return i;
+    return -1;
+}
+int used(char x, int s)
+{
+    for(int i=s; i<n; i++)
+    {
+        if(instr[i][3]==x)return i;
+        if(instr[i][5]==x)return i;
+    }
+    return n+1;
+}
+int rep(int s)
+{
+    int i, j;
+
+    for(i=0; i<r; i++)
+    {
+        if(reg[i]==0)return i;
+        last[i]=used(reg[i], s);
+    }
+    j=0;
+    for(i=0; i<r; i++)
+    {
+        if(last[i]>last[j])j=i;
+    }
+    return j;
+}
+int totar(int n)
+{
+    strcpy(regname[0], "%eax");
+    strcpy(regname[1], "%ebx");
+    strcpy(regname[2], "%ecx");
+    r=2;
+    int i;
+    memset(reg, '\0', sizeof reg);
+    for(i=0; i<n; i++)
+    {
+//        scanf("%s", instr[i]);
+        strcpy(instr[i], expre[i]);
+        printf("%s\n", instr[i]);
+    }
+    for(i=0; i<n; i++)
+    {
+        char a=instr[i][2], b=instr[i][4], op=instr[i][3];
+        int an=Find(a), bn=Find(b);
+        if(an==-1)
+        {
+            int r=rep(i);
+//            cout<<reg[r]<<endl;
+            if(reg[r]=='A' || reg[r]=='B'|| (reg[r]!=0 && used(reg[r], i)<n))
+            {
+                printf("movl %s, %c\n", regname[r], reg[r]);
+                sprintf(order[ordnum], "movl %s, %c\n", regname[r], reg[r]);
+
+                cout<<"daima"<<endl;
+                cout<<order[ordnum]<<endl;
+                ordnum++;
+            }
+            printf("movl %c, %s\n", a, regname[r]);
+            sprintf(order[ordnum], "movl %c, %s", a, regname[r]);
+
+            cout<<"daima"<<endl;
+            cout<<order[ordnum]<<endl;
+            ordnum++;
+            an=r;
+        }
+        switch(op)
+        {
+            case '+':{printf("add ");strcpy(order[ordnum], "add ");break;}
+            case '-':{printf("sub ");strcpy(order[ordnum], "sub ");break;}
+            case '*':{printf("mul ");strcpy(order[ordnum], "mul ");break;}
+            case '/':{printf("div ");strcpy(order[ordnum], "div ");break;}
+        }
+//        printf("R%d, ", an);
+        int nowp=4;
+        if(bn!=-1)
+        {
+            printf("%s, ", regname[bn]);
+            int i=0;
+            while(regname[bn][i])
+            {
+                order[ordnum][nowp++]=regname[bn][i++];
+            }
+            order[ordnum][nowp++]=',';
+            order[ordnum][nowp++]=' ';
+        }
+        else
+        {
+            printf("%c, ", b);
+            order[ordnum][nowp++]=b;
+            order[ordnum][nowp++]=',';
+            order[ordnum][nowp++]=' ';
+        }
+        printf("%s", regname[an]);
+        int j=0;
+        while(regname[an][j])
+        {
+            order[ordnum][nowp++]=regname[an][j++];
+        }
+        order[ordnum][nowp]='\0';
+        cout<<"daima"<<endl;
+        cout<<order[ordnum]<<endl;
+        ordnum++;
+        reg[an]=instr[i][0];
+	if(reg[an]=='A' || reg[an]=='B')
+	{
+            sprintf(order[ordnum], "movl %s, %c", regname[an], reg[an]);
+            ordnum++;
+	
+	}
+    }
+    for(i=0; i<2; i++)
+    {
+        if(reg[i])
+        {
+            sprintf(order[ordnum], "movl %s, %c", regname[i], reg[i]);
+            ordnum++;
+        }
+    }
+}
+
+void create()
+{
+    int i, j;
+    printf("汇编代码\n");
+    freopen("cc.s", "w", stdout);
+    printf(".align 4\n.globl main\nmain:\n");
+    printf("\tpushl %%ebp\n\tmovl %%esp, %%ebp\n");
+    for(i=0; i<ordnum; i++)
+    {
+        printf("\t%s\n", order[i]);
+    }
+    printf("\tleave\n\tret\n");
+    printf(".section .bss\n");
+    for(i=0; i<idnum; i++)
+    {
+        printf("\t.comm %c,4\n", ident[i].A);
+    }
+    printf(".section .data\n");
+    printf("\toutput:\n");
+    printf("\t.ascii \"%%d\\n\"\n");
+
+}
+void isll1(char a[])
+{
+    error=p=0;
+    E(a);
+    printf("%d %d\n", p, error);
+    if(error || a[p])printf("error %s\n", a);
+    else printf("accept %s\n", a);
+}
+void isll1_2(char a[])
+{
+    error=p=0;
+    cx(a);
+    cout<<"main"<<error<<endl;
+    if(error || a[p])printf("error %s\n", a);
+    else printf("accept %s\n", a);
+}
+
+
+int main()
+{
+//    freopen("C:\\Users\\johsnow\\Desktop\\res.txt", "w", stdout);
+    getcode();
+    char a[3005];
+    strcpy(a, code);
+    isll1_2(a);
+    printf("优化后中间代码：\n");
+    for(int i=1; i<=NumExp; i++)
+    {
+        printf("%s\n", expre[i]);
+    }
+//    printf("%s\n", nowcode);
+    strcpy(code,nowcode);
+    printf("优化后代码：\n");
+    printf("%s\n", code);
+    create();
+}
+
+
+/*
+*
+*
+*
+*/
+
+void E(char a[])
+{
+    printf("%d E-->bzf=ss\n", num++);
+    bzf(a);
+    if(a[p]=='=')nowcode[nowp++]=a[p++];
+    else {
+        error=1;
+        return;
+    }
+    ss(a);
+    return;
+}
+void ss(char a[])
+{
+    if(error)return;
+        printf("%d E-->TG\n", num++);
+        T(a);
+        G(a);
+}
+void T(char a[])
+{
+    if(error)return;
+    printf("%d T-->FH\n", num++);
+    F(a);
+    H(a);
+}
+void G(char a[])
+{
+    if(error)return;
+    if(a[p]=='+')
+    {
+        printf("%d G-->+TG\n", num++);
+        nowcode[nowp++]=a[p++];
+        T(a);
+        G(a);
+    }
+    else
+    {
+        printf("%d G-->&\n", num++);
+    }
+}
+void F(char a[])
+{
+    if(error)return;
+    if(isalpha(a[p])||a[p]=='_')
+    {
+        printf("%d F-->bzf\n", num++);
+        bzf(a);
+    }
+    else if(a[p]=='(')
+    {
+        printf("%d F-->(E)\n", num++);
+       nowcode[nowp++]=a[p++];
+      E(a);
+     if(a[p]!=')')
+     {
+         error=1;
+         printf("no )\n");
+         return;
+     }
+     nowcode[nowp++]=a[p++];
+    }
+    else
+    {
+        printf("%d F-->Uint\n", num++);
+        Uint(a);
+    }
+}
+void Uint(char a[])
+{
+    if(error)return;
+    if(isdigit(a[p])==0)
+    {
+        error=1;
+        return;
+    }
+    else if(isdigit(a[p+1]))
+    {
+        printf("%d Uint-->Int Uint\n", num++);
+        Int(a);
+        Uint(a);
+    }
+    else
+    {
+        printf("%d Uint-->Int\n", num++);
+        Int(a);
+    }
+    return;
+}
+void Int(char a[])
+{
+    if(error)return;
+    if(isdigit(a[p]))
+    {
+        printf("%d Int-->%c\n", num, a[p]);
+        nowcode[nowp++]=a[p++];
+    }
+}
+void H(char a[])
+{
+    if(a[p]=='*')
+    {
+        printf("%d H-->*FH\n", num++);
+        nowcode[nowp++]=a[p++];
+        F(a);
+        H(a);
+    }
+    else
+    {
+        printf("%d H-->&\n", num++);
+    };
+}
+void cx(char a[])
+{
+    if(error)return;
+    if(a[p]=='m')
+    {
+        printf("%d cx-->MainKey (){sm yjxl }\n", num++);
+        MainKey(a);
+        if(a[p]=='(' && a[p+1]==')' && a[p+2]=='{')
+        {
+            nowcode[nowp++]=a[p++];
+            nowcode[nowp++]=a[p++];
+            nowcode[nowp++]=a[p++];
+            sm(a);
+//            printf("+++%s\n", a+p);
+            yjxl(a);
+//            printf("+++%s\n", a+p-1);
+
+//printf("%d %d\n", num, error);
+            if(a[p]=='}')
+            {
+                nowcode[nowp++]=a[p++];
+            }
+            else error=1;
+            printf("%d %d\n", num, error);
+        }
+        else
+        {
+            error=1;
+            return;
+        }
+    }
+    printf("%d %d\n", num, error);
+}
+void sm(char a[])
+{
+    if(error)return;
+    if(a[p]=='i' && a[p+1]=='n' && a[p+2]=='t')
+    {
+        printf("%d sm-->smyj sm\n", num++);
+        smyj(a);
+        sm(a);
+    }
+    else
+    {
+        printf("%d sm-->&\n", num++);
+    }
+}
+void smyj(char a[])
+{
+    if(error)return;
+     if(a[p]=='i' && a[p+1]=='n' && a[p+2]=='t')
+    {
+        printf("%d smyj-->IntKey bzfb;\n", num++);
+        IntKey(a);
+        bzfb(a);
+        if(a[p]==';')
+        {
+            nowcode[nowp++]=a[p++];
+        }
+        else error=1;
+    }
+    else error=1;
+}
+void IntKey(char a[])
+{
+    if(error)return;
+    if(a[p]=='i' && a[p+1]=='n' && a[p+2]=='t')
+    {
+        nowcode[nowp++]=a[p++];
+        nowcode[nowp++]=a[p++];
+        nowcode[nowp++]=a[p++];
+        printf("%d Intkey-->int\n", num++);
+    }
+    else error=1;
+}
+void MainKey(char a[])
+{
+    if(error)return;
+    if(a[p]=='m' && a[p+1]=='a' && a[p+2]=='i' && a[p+3]=='n')
+    {
+        nowcode[nowp++]=a[p++];
+        nowcode[nowp++]=a[p++];
+        nowcode[nowp++]=a[p++];
+        nowcode[nowp++]=a[p++];
+        printf("%d MainKey-->main\n", num++);
+    }
+    else error=1;
+}
+void bzfb(char a[])
+{
+    if(error)return;
+    if(isalpha(a[p])||a[p]=='_')
+    {
+        bzf(a);
+        ident[idnum++].A=a[p-1];
+        if(a[p]==',')
+        {
+            nowcode[nowp++]=a[p++];
+            printf("%d bzfb-->bzf, bzfb \n", num++);
+            bzfb(a);
+        }
+        else printf("%d bzfb--> bzf \n", num++);
+    }
+    else error=1;
+}
+void bzf(char a[])
+{
+    if(error)return;
+    if(isalpha(a[p]))
+    {
+        printf("%d bzf-->zm bzf tbzf\n", num++);
+        zm(a);
+        bzf(a);
+        tbzf(a);
+    }
+    else if(a[p]=='_')
+    {
+        nowcode[nowp++]=a[p++];
+        printf("%d bzf-->_ bzf tbzf\n", num++);
+        bzf(a);
+        tbzf(a);
+    }
+    else printf("%d bzf-->&\n", num++);
+}
+void tbzf(char a[])
+{
+    if(error)return;
+    if(isdigit(a[p]))
+    {
+        printf("%d tbzf-->int tbzf\n", num++);
+        Int(a);
+        tbzf(a);
+    }
+    else printf("%d tbzf-->&\n", num++);
+}
+void zm(char a[])
+{
+    if(error)return;
+    if(isalpha(a[p]))
+    {
+        printf("%d zm-->%c\n", num++, a[p]);
+        nowcode[nowp++]=a[p++];
+    }
+    else error=1;
+}
+
+
+
+
+void yjxl(char a[])
+{
+    if(error)return;
+//    printf("%d %d\n", num, error);
+    if(isalpha(a[p])||a[p]=='_' || a[p]=='{')
+    {
+        printf("%d yjxl-->yj yjxl\n", num++);
+        yj(a);
+        yjxl(a);
+    }
+    else printf("%d yjxl-->&\n", num++);
+//        printf("%d %d\n", num, error);
+
+//    dag(NumExp, expre);
+//    for(int i=1; i<=NumExp; i++)
+//    {
+//        printf("%s\n", expre[i]);
+//    }
+}
+void yj(char a[])
+{
+    if(error)return;
+    if(a[p]=='i' && a[p+1]=='f' && a[p+2]=='(')
+    {
+        printf("%d yj-->ifyj\n", num++);
+        ifyj(a);
+//        ifyj(a);
+    }
+    else if(a[p]=='w' && a[p+1]=='h' && a[p+2]=='i' && a[p+3]=='l' && a[p+4]=='e' && a[p+5]=='(')
+    {
+        printf("%d yj-->whileyj\n", num++);
+        whileyj(a);
+    }
+    else if(a[p]=='s' && a[p+1]=='c' && a[p+2]=='a' && a[p+3]=='n' && a[p+4]=='f' && a[p+5]=='(')
+    {
+        printf("%d yj-->scanfyj\n", num++);
+        nowcode[nowp++]=a[p++];
+        nowcode[nowp++]=a[p++];
+        nowcode[nowp++]=a[p++];
+        nowcode[nowp++]=a[p++];
+        nowcode[nowp++]=a[p++];
+//        whileyj(a);
+    }
+    else if(a[p]=='p' && a[p+1]=='r' && a[p+2]=='i' && a[p+3]=='n' && a[p+4]=='t' && a[p+5]=='f' && a[p+6]=='(')
+    {
+        printf("%d yj-->printfyj\n", num++);
+        nowcode[nowp++]=a[p++];
+        nowcode[nowp++]=a[p++];
+        nowcode[nowp++]=a[p++];
+        nowcode[nowp++]=a[p++];
+        nowcode[nowp++]=a[p++];
+        nowcode[nowp++]=a[p++];
+//        printfyj(a);
+    }
+    else if(a[p]=='{')
+    {
+          printf("%d yj-->fhyj\n", num++);
+          fhyj(a);
+    }
+    else if(isalpha(a[p])||a[p]=='_')
+    {
+        printf("%d yj-->fz\n", num++);
+//        cout<<error<<endl;
+        fz(a);
+    }
+    else error=1;
+//    printf("%d %d\n", num, error);
+}
+void fz(char a[])
+{
+    if(error)return;
+    int now=p;
+    if(isalpha(a[p])||a[p]=='_')
+    {
+        printf("%d fz-->E\n", num++);
+        E(a);
+        if(a[p]==';')nowcode[nowp++]=a[p++];
+        else error=1;
+    }
+    else error=1;
+    printf("赋值表达式\n");
+
+    //获取表达式
+    int j=0;
+    NumExp++;
+    for(int i=now; i<p; i++){
+            expre[NumExp][j++]=a[i];
+    }
+    expre[NumExp][j]='\0';
+    printf("%s\n", expre[NumExp]);
+    if(isdigit(expre[NumExp][j-2]))
+    {
+        int x=0, i=2, q=0;
+        while(isdigit(expre[NumExp][i]))
+        {
+            x=x*10+expre[NumExp][i]-'0';
+            i++;
+        }
+        strcpy(order[ordnum], "movl $");
+        q=6;
+        for(int t=2; t<i; t++, q++)order[ordnum][q]=expre[NumExp][t];
+        order[ordnum][q++]=',';
+        order[ordnum][q++]=' ';
+        order[ordnum][q++]=expre[NumExp][0];
+        order[ordnum][q]='\0';
+        cout<<order[ordnum]<<endl;
+        ordnum++;
+    }
+}
+void fhyj(char a[])
+{
+    if(error)return;
+    if(a[p]=='{')
+    {
+        nowcode[nowp++]=a[p++];
+        printf("%d fhyj-->yjxl\n", num++);
+        int start=nowp;
+        NumExp=0;
+        yjxl(a);
+        int en=nowp;
+        nowp=start;
+        dag(NumExp, expre);
+	printf("fhyj\n");
+        for(int i=0; i<NumExp; i++)
+        {
+            printf("%s\n", expre[i]);
+            for(int j=0; expre[i][j]; j++)
+            {
+                nowcode[nowp++]=expre[i][j];
+            }
+        }
+        totar(NumExp);
+
+        for(int i=nowp; i<en; i++)nowcode[i]='\0';
+        printf("NOW %s\n", nowcode);
+        if(a[p]!='}')
+        {
+            error=1;
+            return;
+        }
+        nowcode[nowp++]=a[p++];
+    }
+    else error=1;
+//    printf("%d %d\n", num, error);
+    return;
+}
+void ifyj(char a[])
+{
+    if(error)return;
+    if(a[p]=='i' && a[p+1]=='f' && a[p+2]=='(')
+    {
+        nowcode[nowp++]=a[p++];
+        nowcode[nowp++]=a[p++];
+        nowcode[nowp++]=a[p++];
+        printf("%d ifyj-->if(bds)fhyj\n", num++);
+        bds(a);
+	sprintf(order[ordnum], "movl %c, %%eax", a[p-1]);
+	ordnum++;
+	sprintf(order[ordnum], "movl %c, %%ebx", a[p-3]);
+	ordnum++;
+	sprintf(order[ordnum], "cmpl %%eax, %%ebx");
+	ordnum++;
+	if(a[p-2]=='>')
+	{
+		strcpy(order[ordnum], "jle ");
+	}
+	else if(a[p-2]=='<')
+	{
+		strcpy(order[ordnum], "jge ");
+	}
+	order[ordnum][3]=' ';
+	order[ordnum][4]='.';
+	order[ordnum][5]='L';
+	ordnum++;
+
+        if(a[p]!=')')
+        {
+            error=1;
+            return;
+        }
+        nowcode[nowp++]=a[p++];
+        fhyj(a);
+	sprintf(order[ordnum], ".L:");
+	ordnum++;
+    }
+    else error=1;
+}
+void whileyj(char a[])
+{
+    if(error)return;
+    if(a[p]=='w' && a[p+1]=='h' && a[p+2]=='i' && a[p+3]=='l' && a[p+4]=='e' && a[p+5]=='(')
+    {
+        nowcode[nowp++]=a[p++];
+        nowcode[nowp++]=a[p++];
+        nowcode[nowp++]=a[p++];
+        nowcode[nowp++]=a[p++];
+        nowcode[nowp++]=a[p++];
+        nowcode[nowp++]=a[p++];
+        printf("%d whileyj-->while(bds)fhyj\n", num++);
+        bds(a);
+	char A=a[p-3], B=a[p-1];
+	sprintf(order[ordnum], "movl %c, %%eax", a[p-1]);
+	ordnum++;
+	sprintf(order[ordnum], "movl %c, %%ebx", a[p-3]);
+	ordnum++;
+	sprintf(order[ordnum], "cmpl %%eax, %%ebx");
+	ordnum++;
+	char op=a[p-2];
+	if(a[p-2]=='>')
+	{
+		strcpy(order[ordnum], "jle ");
+	}
+	else if(a[p-2]=='<')
+	{
+		strcpy(order[ordnum], "jge ");
+	}
+	order[ordnum][3]=' ';
+	order[ordnum][4]='.';
+	order[ordnum][5]='L';
+	order[ordnum][6]='w';
+	order[ordnum][7]='f';
+	ordnum++;
+
+        if(a[p]!=')')
+        {
+            error=1;
+            return;
+        }
+        nowcode[nowp++]=a[p++];
+	sprintf(order[ordnum], ".Lwt:");
+	ordnum++;
+        fhyj(a);
+	//judgeagain
+	sprintf(order[ordnum], "movl %c, %%eax", B);
+	ordnum++;
+	sprintf(order[ordnum], "movl %c, %%ebx", A);
+	ordnum++;
+	sprintf(order[ordnum], "cmpl %%eax, %%ebx");
+	ordnum++;
+	if(op=='>')
+	{
+		strcpy(order[ordnum], "jg ");
+	}
+	else if(op=='<')
+	{
+		strcpy(order[ordnum], "jl ");
+	}
+	order[ordnum][3]=' ';
+	order[ordnum][4]='.';
+	order[ordnum][5]='L';
+	order[ordnum][6]='w';
+	order[ordnum][7]='t';
+	ordnum++;
+	
+	sprintf(order[ordnum], ".Lwf:");
+	ordnum++;
+    }
+    else error=1;
+}
+
+
+void bds(char a[])
+{
+    if(error)return;
+    printf("%d bds-->ss tbds\n", num++);
+    ss(a);
+    tbds(a);
+}
+void tbds(char a[])
+{
+    if(error)return;
+    if(a[p]=='<' || a[p]=='>' || a[p]=='!' || a[p]=='=')
+    {
+        printf("%d tbds-->op ss\n", num++);
+        nowcode[nowp++]=a[p++];
+        if(a[p]=='=')nowcode[nowp++]=a[p++];
+        ss(a);
+    }
+    else printf("%d tbds-->&\n", num++);
+}
+
